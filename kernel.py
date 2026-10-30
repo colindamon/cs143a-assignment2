@@ -27,6 +27,7 @@ class Kernel:
     waiting_queue: deque[PCB]
     running: PCB
     idle_pcb: PCB
+    running_time: int
 
     # Called before the simulation begins.
     # Use this method to initilize any variables you need throughout the simulation.
@@ -40,6 +41,7 @@ class Kernel:
         self.waiting_queue = deque()
         self.idle_pcb = PCB(0, 0)
         self.running = self.idle_pcb
+        self.running_time = 0
 
     # This method is triggered every time a new process has arrived.
     # new_process is this process's PID.
@@ -47,12 +49,13 @@ class Kernel:
     def new_process_arrived(self, new_process: PID, priority: int, process_type: str) -> PID:
         self.ready_queue.append(PCB(new_process, priority))
         self.choose_next_process()
-        return self.running.pid  
+        return self.running.pid
 
     # This method is triggered every time the current process performs an exit syscall.
     # DO NOT rename or delete this method. DO NOT change its arguments.
     def syscall_exit(self) -> PID:
         self.running = self.idle_pcb
+        self.running_time = 0
         self.choose_next_process()
         return self.running.pid
     
@@ -70,10 +73,11 @@ class Kernel:
     def choose_next_process(self):
         if len(self.ready_queue) == 0:
                 return
-        
+
         if self.scheduling_algorithm == "FCFS":
             if self.running is self.idle_pcb:
                 self.running = self.ready_queue.popleft()
+                self.running_time = 0
         elif self.scheduling_algorithm == "Priority":
 
             # Add process `running` back to `ready_queue` to compare with others
@@ -82,6 +86,10 @@ class Kernel:
 
             self.running = self._pop_highest_priority()
             
+        elif self.scheduling_algorithm == "RR":
+            if self.running is self.idle_pcb:
+                self.running = self.ready_queue.popleft()
+                self.running_time = 0
         else:
             print("Unknown scheduling algorithm")
 
@@ -90,7 +98,18 @@ class Kernel:
     # Do not use real time to track how much time has passed as time is simulated.
     # DO NOT rename or delete this method. DO NOT change its arguments.
     def timer_interrupt(self) -> PID:
-        return self.running.pid 
+        # If CPU is idle, then do not count up process running time
+        if self.running is self.idle_pcb:
+            return self.running.pid
+        
+        self.running_time += 10
+        if self.scheduling_algorithm == "RR":
+            if self.running_time >= 40:
+                self.running_time = 0
+                if self.ready_queue:
+                    self.ready_queue.append(self.running)
+                    self.running = self.ready_queue.popleft()
+        return self.running.pid
 
     # HELPER FUNCTIONS
     # Priority Scheduler
