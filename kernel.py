@@ -29,6 +29,7 @@ class Kernel:
     waiting_queue: deque[PCB]
     running: PCB
     idle_pcb: PCB
+    timer: int
 
     # Called before the simulation begins.
     # Use this method to initilize any variables you need throughout the simulation.
@@ -42,6 +43,7 @@ class Kernel:
         self.waiting_queue = deque()
         self.idle_pcb = PCB(0, 0)
         self.running = self.idle_pcb
+        self.timer = 0
 
     # This method is triggered every time a new process has arrived.
     # new_process is this process's PID.
@@ -49,7 +51,7 @@ class Kernel:
     def new_process_arrived(self, new_process: PID, priority: int, process_type: str) -> PID:
         self.ready_queue.append(PCB(new_process, priority))
         self.choose_next_process()
-        return self.running.pid  
+        return self.running.pid
 
     # This method is triggered every time the current process performs an exit syscall.
     # DO NOT rename or delete this method. DO NOT change its arguments.
@@ -77,6 +79,13 @@ class Kernel:
         if self.scheduling_algorithm == "FCFS":
             if self.running is self.idle_pcb:
                 self.running = self.ready_queue.popleft()
+        elif self.scheduling_algorithm == "RR":
+            if self.running is not self.idle_pcb and self.timer % 40 == 0:
+                self.ready_queue.append(self.running)
+                self.timer = 0
+                self.running = self.ready_queue.popleft()
+            elif self.running is self.idle_pcb:
+                self.running = self.ready_queue.popleft()
         else:
             print("Unknown scheduling algorithm")
 
@@ -85,4 +94,7 @@ class Kernel:
     # Do not use real time to track how much time has passed as time is simulated.
     # DO NOT rename or delete this method. DO NOT change its arguments.
     def timer_interrupt(self) -> PID:
-        return self.running.pid 
+        self.timer += 10
+        if self.scheduling_algorithm == "RR" and self.timer % 40 == 0:
+            self.choose_next_process()
+        return self.running.pid
