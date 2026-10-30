@@ -31,6 +31,7 @@ class Kernel:
     running: PCB
     idle_pcb: PCB
     running_time: int
+    level_time: int
     foreground_mode: bool
 
     # Called before the simulation begins.
@@ -47,6 +48,8 @@ class Kernel:
         self.idle_pcb = PCB(0, 0)
         self.running = self.idle_pcb
         self.running_time = 0
+        self.level_time = 0
+        self.foreground_mode = True
 
     # This method is triggered every time a new process has arrived.
     # new_process is this process's PID.
@@ -56,6 +59,11 @@ class Kernel:
             self.ready_FCFS_queue.append(PCB(new_process, priority))
         elif self.scheduling_algorithm == "RR":
             self.ready_RR_queue.append(PCB(new_process, priority))
+        elif self.scheduling_algorithm == "Multilevel":
+            if process_type == "Foreground":
+                self.ready_RR_queue.append(PCB(new_process, priority))
+            elif process_type == "Background":
+                self.ready_FCFS_queue.append(PCB(new_process, priority))
         self.choose_next_process()
         return self.running.pid
 
@@ -83,14 +91,34 @@ class Kernel:
         if self.scheduling_algorithm == "FCFS":
             if len(self.ready_FCFS_queue) == 0:
                 return
-            if self.running is self.idle_pcb:
+            if self.running is self.idle_pcb and self.ready_FCFS_queue:
                 self.running = self.ready_FCFS_queue.popleft()
                 self.running_time = 0
         elif self.scheduling_algorithm == "RR":
             if len(self.ready_RR_queue) == 0:
                 return
-            if self.running is self.idle_pcb:
+            if self.running is self.idle_pcb and self.ready_RR_queue:
                 self.running = self.ready_RR_queue.popleft()
+                self.running_time = 0
+        elif self.scheduling_algorithm == "Multilevel":
+            if len(self.ready_RR_queue) == 0 and len(self.ready_FCFS_queue) == 0:
+                return
+            if self.running is self.idle_pcb:
+                # If the current level is empty, then switch to the other level immediately
+                if self.foreground_mode and not self.ready_RR_queue:
+                    if self.ready_FCFS_queue:
+                        self.foreground_mode = False
+                        self.level_time = 0
+                elif not self.foreground_mode and not self.ready_FCFS_queue:
+                    if self.ready_RR_queue:
+                        self.foreground_mode = True
+                        self.level_time = 0
+
+                # Choosing new process from a non-empty queue of current level
+                if self.foreground_mode and self.ready_RR_queue:
+                    self.running = self.ready_RR_queue.popleft()
+                elif not self.foreground_mode and self.ready_FCFS_queue:
+                    self.running = self.ready_FCFS_queue.popleft()
                 self.running_time = 0
         else:
             print("Unknown scheduling algorithm")
@@ -100,14 +128,45 @@ class Kernel:
     # Do not use real time to track how much time has passed as time is simulated.
     # DO NOT rename or delete this method. DO NOT change its arguments.
     def timer_interrupt(self) -> PID:
-        # If CPU is idle, then do not count up process running time
-        if self.running is self.idle_pcb:
-            return self.running.pid
-        
-        self.running_time += 10
         if self.scheduling_algorithm == "RR":
+            # If CPU is idle, then do not count up process running time
+            if self.running is self.idle_pcb:
+                return self.running.pid
+            self.running_time += 10
             if self.running_time >= 40:
                 self.running_time = 0
+                # If there's a process in the ready_queue after the running process's quantum expires,
+                # then context switch
+                if self.ready_RR_queue:
+                    self.ready_RR_queue.append(self.running)
+                    self.running = self.ready_RR_queue.popleft()
+        elif self.scheduling_algorithm == "Multilevel":
+            self.level_time += 10
+            if self.running is not self.idle_pcb:
+                self.running_time += 10
+
+            # Switching levels after 200ms unless the other level has an empty queue
+            if self.level_time >= 200:
+                if self.foreground_mode and self.ready_FCFS_queue:
+                    # Return running foreground process to RR queue
+                    if self.running is not self.idle_pcb:
+                        self.ready_RR_queue.append(self.running)
+                    self.foreground_mode = False
+                    self.running = self.idle_pcb
+                    self.running_time = 0
+                    self.level_time = 0
+                    self.choose_next_process()
+                elif not self.foreground_mode and self.ready_RR_queue:
+                    # Return running background process to FCFS queue
+                    if self.running is not self.idle_pcb:
+                        self.ready_FCFS_queue.appendleft(self.running)
+                    self.foreground_mode = True
+                    self.running = self.idle_pcb
+                    self.running_time = 0
+                    self.level_time = 0
+                    self.choose_next_process()
+            # RR quantum to foreground processes
+            if self.running_time >= 40:
                 # If there's a process in the ready_queue after the running process's quantum expires,
                 # then context switch
                 if self.ready_RR_queue:
