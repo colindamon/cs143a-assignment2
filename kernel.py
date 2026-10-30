@@ -109,22 +109,21 @@ class Kernel:
             if len(self.ready_RR_queue) == 0 and len(self.ready_FCFS_queue) == 0:
                 return
             if self.running is self.idle_pcb:
-                # If the current level is empty, then switch to the other level immediately
-                if self.foreground_mode and not self.ready_RR_queue:
-                    if self.ready_FCFS_queue:
-                        self.foreground_mode = False
-                        self.level_time = 0
-                elif not self.foreground_mode and not self.ready_FCFS_queue:
-                    if self.ready_RR_queue:
-                        self.foreground_mode = True
-                        self.level_time = 0
+                # If the current level is empty, then switch to the other level
+                if self.foreground_mode and not self.ready_RR_queue and self.ready_FCFS_queue:
+                    self.foreground_mode = False
+                    self.level_time = 0
+                elif not self.foreground_mode and not self.ready_FCFS_queue and self.ready_RR_queue:
+                    self.foreground_mode = True
+                    self.level_time = 0
 
                 # Choosing new process from a non-empty queue of current level
                 if self.foreground_mode and self.ready_RR_queue:
                     self.running = self.ready_RR_queue.popleft()
+                    self.running_time = 0
                 elif not self.foreground_mode and self.ready_FCFS_queue:
                     self.running = self.ready_FCFS_queue.popleft()
-                self.running_time = 0
+                    self.running_time = 0
         else:
             print("Unknown scheduling algorithm")
 
@@ -149,26 +148,34 @@ class Kernel:
             self.level_time += 10
             if self.running is not self.idle_pcb:
                 self.running_time += 10
+            # Check if current level's queue has become empty
+            if self.foreground_mode:
+                current_level_is_empty = not self.ready_RR_queue and self.running is self.idle_pcb
+                other_level_is_available = bool(self.ready_FCFS_queue)
+            else:
+                current_level_is_empty = not self.ready_FCFS_queue and self.running is self.idle_pcb
+                other_level_is_available = bool(self.ready_RR_queue)
+            if current_level_is_empty and other_level_is_available:
+                self.foreground_mode = not self.foreground_mode
+                self.level_time = 0
+                self.choose_next_process()
 
-            # Switching levels after 200ms unless the other level has an empty queue
-            if self.level_time >= 200:
+            # Switching levels after 200ms
+            elif self.level_time >= 200:
+                self.level_time = 0
                 if self.foreground_mode and self.ready_FCFS_queue:
-                    # Return running foreground process to RR queue
                     if self.running is not self.idle_pcb:
                         self.ready_RR_queue.append(self.running)
                     self.foreground_mode = False
                     self.running = self.idle_pcb
                     self.running_time = 0
-                    self.level_time = 0
                     self.choose_next_process()
                 elif not self.foreground_mode and self.ready_RR_queue:
-                    # Return running background process to FCFS queue
                     if self.running is not self.idle_pcb:
                         self.ready_FCFS_queue.appendleft(self.running)
                     self.foreground_mode = True
                     self.running = self.idle_pcb
                     self.running_time = 0
-                    self.level_time = 0
                     self.choose_next_process()
             # RR quantum to foreground processes
             if self.running_time >= 40:
