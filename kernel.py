@@ -29,7 +29,7 @@ class Kernel:
     waiting_queue: deque[PCB]
     running: PCB
     idle_pcb: PCB
-    timer: int
+    running_time: int
 
     # Called before the simulation begins.
     # Use this method to initilize any variables you need throughout the simulation.
@@ -43,7 +43,7 @@ class Kernel:
         self.waiting_queue = deque()
         self.idle_pcb = PCB(0, 0)
         self.running = self.idle_pcb
-        self.timer = 0
+        self.running_time = 0
 
     # This method is triggered every time a new process has arrived.
     # new_process is this process's PID.
@@ -90,10 +90,14 @@ class Kernel:
     # Do not use real time to track how much time has passed as time is simulated.
     # DO NOT rename or delete this method. DO NOT change its arguments.
     def timer_interrupt(self) -> PID:
-        self.timer += 10
+        # If CPU is idle, then do not count up process running time
+        if self.running is self.idle_pcb:
+            return self.running.pid
+        
+        self.running_time += 10
         if self.scheduling_algorithm == "RR":
-            if self.timer >= 40:
-                self.timer = 0
+            if self.running_time >= 40:
+                self.running_time = 0
                 if self.ready_queue:
                     self.ready_queue.append(self.running)
                     self.running = self.ready_queue.popleft()
