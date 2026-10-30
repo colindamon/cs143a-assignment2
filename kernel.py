@@ -57,6 +57,7 @@ class Kernel:
     # DO NOT rename or delete this method. DO NOT change its arguments.
     def syscall_exit(self) -> PID:
         self.running = self.idle_pcb
+        self.running_time = 0
         self.choose_next_process()
         return self.running.pid
     
@@ -79,9 +80,11 @@ class Kernel:
         if self.scheduling_algorithm == "FCFS":
             if self.running is self.idle_pcb:
                 self.running = self.ready_queue.popleft()
+                self.running_time = 0
         elif self.scheduling_algorithm == "RR":
             if self.running is self.idle_pcb:
                 self.running = self.ready_queue.popleft()
+                self.running_time = 0
         else:
             print("Unknown scheduling algorithm")
 
