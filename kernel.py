@@ -2,8 +2,6 @@
 # Group id: 15
 # Members: Minh Tan Do, Mark Rodriguez, Colin Damon
 
-
-
 from collections import deque
 
 # PID is just an integer, but it is used to make it clear when a integer is expected to be a valid PID.
@@ -65,7 +63,6 @@ class Kernel:
         self.choose_next_process()
         return self.running.pid
 
-
     # This is where you can select the next process to run.
     # This method is not directly called by the simulator and is purely for your convinience.
     # Feel free to modify this method as you see fit.
@@ -77,6 +74,14 @@ class Kernel:
         if self.scheduling_algorithm == "FCFS":
             if self.running is self.idle_pcb:
                 self.running = self.ready_queue.popleft()
+        elif self.scheduling_algorithm == "Priority":
+
+            # Add process `running` back to `ready_queue` to compare with others
+            if self.running is not self.idle_pcb:
+                self.ready_queue.append(self.running)
+
+            self.running = self._pop_highest_priority()
+            
         else:
             print("Unknown scheduling algorithm")
 
@@ -86,3 +91,18 @@ class Kernel:
     # DO NOT rename or delete this method. DO NOT change its arguments.
     def timer_interrupt(self) -> PID:
         return self.running.pid 
+
+    # HELPER FUNCTIONS
+    # Priority Scheduler
+    def _pop_highest_priority(self) -> PCB:
+        best_index = 0
+        for i in range(1, len(self.ready_queue)):
+            if self.ready_queue[i].priority > self.ready_queue[best_index].priority:
+                best_index = i
+            elif self.ready_queue[i].priority == self.ready_queue[best_index].priority:
+                if self.ready_queue[i].pid < self.ready_queue[best_index].pid:
+                    best_index = i
+
+        best = self.ready_queue[best_index]
+        del self.ready_queue[best_index]
+        return best
