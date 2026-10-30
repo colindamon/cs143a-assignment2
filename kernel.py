@@ -75,16 +75,12 @@ class Kernel:
     def choose_next_process(self):
         if len(self.ready_queue) == 0:
                 return
-        
+
         if self.scheduling_algorithm == "FCFS":
             if self.running is self.idle_pcb:
                 self.running = self.ready_queue.popleft()
         elif self.scheduling_algorithm == "RR":
-            if self.running is not self.idle_pcb and self.timer % 40 == 0:
-                self.ready_queue.append(self.running)
-                self.timer = 0
-                self.running = self.ready_queue.popleft()
-            elif self.running is self.idle_pcb:
+            if self.running is self.idle_pcb:
                 self.running = self.ready_queue.popleft()
         else:
             print("Unknown scheduling algorithm")
@@ -95,6 +91,10 @@ class Kernel:
     # DO NOT rename or delete this method. DO NOT change its arguments.
     def timer_interrupt(self) -> PID:
         self.timer += 10
-        if self.scheduling_algorithm == "RR" and self.timer % 40 == 0:
-            self.choose_next_process()
+        if self.scheduling_algorithm == "RR":
+            if self.timer >= 40:
+                self.timer = 0
+                if self.ready_queue:
+                    self.ready_queue.append(self.running)
+                    self.running = self.ready_queue.popleft()
         return self.running.pid
