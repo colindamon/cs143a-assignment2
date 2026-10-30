@@ -58,6 +58,8 @@ class Kernel:
         elif self.scheduling_algorithm == "RR":
             self.ready_RR_queue.append(PCB(new_process, priority))
         elif self.scheduling_algorithm == "Multilevel":
+            if self.running is self.idle_pcb and not self.ready_RR_queue and not self.ready_FCFS_queue:
+                self.level_time = 0
             if process_type == "Foreground":
                 self.ready_RR_queue.append(PCB(new_process, priority))
             elif process_type == "Background":
