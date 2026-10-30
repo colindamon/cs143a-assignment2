@@ -25,11 +25,13 @@ class PCB:
 # DO NOT modify the name of this class or remove it.
 class Kernel:
     scheduling_algorithm: str
-    ready_queue: deque[PCB]
+    ready_FCFS_queue: deque[PCB]
+    ready_RR_queue: deque[PCB]
     waiting_queue: deque[PCB]
     running: PCB
     idle_pcb: PCB
     running_time: int
+    foreground_mode: bool
 
     # Called before the simulation begins.
     # Use this method to initilize any variables you need throughout the simulation.
@@ -39,7 +41,8 @@ class Kernel:
     # DO NOT rename or delete this method. DO NOT change its arguments.
     def __init__(self, scheduling_algorithm: str, logger):
         self.scheduling_algorithm = scheduling_algorithm
-        self.ready_queue = deque()
+        self.ready_FCFS_queue = deque()
+        self.ready_RR_queue = deque()
         self.waiting_queue = deque()
         self.idle_pcb = PCB(0, 0)
         self.running = self.idle_pcb
@@ -49,7 +52,10 @@ class Kernel:
     # new_process is this process's PID.
     # DO NOT rename or delete this method. DO NOT change its arguments.
     def new_process_arrived(self, new_process: PID, priority: int, process_type: str) -> PID:
-        self.ready_queue.append(PCB(new_process, priority))
+        if self.scheduling_algorithm == "FCFS":
+            self.ready_FCFS_queue.append(PCB(new_process, priority))
+        elif self.scheduling_algorithm == "RR":
+            self.ready_RR_queue.append(PCB(new_process, priority))
         self.choose_next_process()
         return self.running.pid
 
@@ -74,16 +80,17 @@ class Kernel:
     # Feel free to modify this method as you see fit.
     # It is not required to actually use this method but it is recommended.
     def choose_next_process(self):
-        if len(self.ready_queue) == 0:
-                return
-
         if self.scheduling_algorithm == "FCFS":
+            if len(self.ready_FCFS_queue) == 0:
+                return
             if self.running is self.idle_pcb:
-                self.running = self.ready_queue.popleft()
+                self.running = self.ready_FCFS_queue.popleft()
                 self.running_time = 0
         elif self.scheduling_algorithm == "RR":
+            if len(self.ready_RR_queue) == 0:
+                return
             if self.running is self.idle_pcb:
-                self.running = self.ready_queue.popleft()
+                self.running = self.ready_RR_queue.popleft()
                 self.running_time = 0
         else:
             print("Unknown scheduling algorithm")
@@ -101,7 +108,9 @@ class Kernel:
         if self.scheduling_algorithm == "RR":
             if self.running_time >= 40:
                 self.running_time = 0
-                if self.ready_queue:
-                    self.ready_queue.append(self.running)
-                    self.running = self.ready_queue.popleft()
+                # If there's a process in the ready_queue after the running process's quantum expires,
+                # then context switch
+                if self.ready_RR_queue:
+                    self.ready_RR_queue.append(self.running)
+                    self.running = self.ready_RR_queue.popleft()
         return self.running.pid
