@@ -145,7 +145,8 @@ class Kernel:
                     self.ready_RR_queue.append(self.running)
                     self.running = self.ready_RR_queue.popleft()
         elif self.scheduling_algorithm == "Multilevel":
-            self.level_time += 10
+            if self.ready_RR_queue or self.ready_FCFS_queue or self.running is not self.idle_pcb:
+                self.level_time += 10
             if self.running is not self.idle_pcb:
                 self.running_time += 10
             # Check if current level's queue has become empty
@@ -178,12 +179,14 @@ class Kernel:
                     self.running_time = 0
                     self.choose_next_process()
             # RR quantum to foreground processes
-            if self.running_time >= 40:
-                # If there's a process in the ready_queue after the running process's quantum expires,
-                # then context switch
-                if self.ready_RR_queue:
-                    self.ready_RR_queue.append(self.running)
-                    self.running = self.ready_RR_queue.popleft()
+            if self.foreground_mode and self.running is not self.idle_pcb:
+                if self.running_time >= 40:
+                    self.running_time = 0
+                    # If there's a process in the ready_queue after the running process's quantum expires,
+                    # then context switch
+                    if self.ready_RR_queue:
+                        self.ready_RR_queue.append(self.running)
+                        self.running = self.ready_RR_queue.popleft()
         return self.running.pid
 
     # HELPER FUNCTIONS
