@@ -25,14 +25,13 @@ class Kernel:
     scheduling_algorithm: str
     ready_FCFS_queue: deque[PCB]
     ready_RR_queue: deque[PCB]
+    ready_Priority_queue: deque[PCB]
     waiting_queue: deque[PCB]
     running: PCB
     idle_pcb: PCB
     running_time: int
     level_time: int
     foreground_mode: bool
-
-    ready_Priority_queue: deque[PCB]  # For Priority scheduling
 
     # Called before the simulation begins.
     # Use this method to initilize any variables you need throughout the simulation.
@@ -44,14 +43,13 @@ class Kernel:
         self.scheduling_algorithm = scheduling_algorithm
         self.ready_FCFS_queue = deque()
         self.ready_RR_queue = deque()
+        self.ready_Priority_queue = deque()
         self.waiting_queue = deque()
         self.idle_pcb = PCB(0, 0)
         self.running = self.idle_pcb
         self.running_time = 0
         self.level_time = 0
         self.foreground_mode = True
-
-        self.ready_Priority_queue = deque()  # For Priority scheduling
 
     # This method is triggered every time a new process has arrived.
     # new_process is this process's PID.
