@@ -32,6 +32,8 @@ class Kernel:
     level_time: int
     foreground_mode: bool
 
+    ready_Priority_queue: deque[PCB]  # For Priority scheduling
+
     # Called before the simulation begins.
     # Use this method to initilize any variables you need throughout the simulation.
     # logger is provided which allows you to include your own print statements in the
@@ -49,6 +51,8 @@ class Kernel:
         self.level_time = 0
         self.foreground_mode = True
 
+        self.ready_Priority_queue = deque()  # For Priority scheduling
+
     # This method is triggered every time a new process has arrived.
     # new_process is this process's PID.
     # DO NOT rename or delete this method. DO NOT change its arguments.
@@ -57,6 +61,8 @@ class Kernel:
             self.ready_FCFS_queue.append(PCB(new_process, priority))
         elif self.scheduling_algorithm == "RR":
             self.ready_RR_queue.append(PCB(new_process, priority))
+        elif self.scheduling_algorithm == "Priority":
+            self.ready_Priority_queue.append(PCB(new_process, priority))
         elif self.scheduling_algorithm == "Multilevel":
             if self.running is self.idle_pcb and not self.ready_RR_queue and not self.ready_FCFS_queue:
                 self.level_time = 0
@@ -94,10 +100,11 @@ class Kernel:
                 self.running = self.ready_FCFS_queue.popleft()
                 self.running_time = 0
         elif self.scheduling_algorithm == "Priority":
-
-            # Add process `running` back to `ready_queue` to compare with others
+            if len(self.ready_Priority_queue) == 0:
+                return
+            # Add process `running` back to `ready_Priority_queue` to compare with others
             if self.running is not self.idle_pcb:
-                self.ready_queue.append(self.running)
+                self.ready_Priority_queue.append(self.running)
 
             self.running = self._pop_highest_priority()
             
@@ -141,7 +148,7 @@ class Kernel:
             self.running_time += 10
             if self.running_time >= 40:
                 self.running_time = 0
-                # If there's a process in the ready_queue after the running process's quantum expires,
+                # If there's a process in the ready_RR_queue after the running process's quantum expires,
                 # then context switch
                 if self.ready_RR_queue:
                     self.ready_RR_queue.append(self.running)
@@ -184,7 +191,7 @@ class Kernel:
             if self.foreground_mode and self.running is not self.idle_pcb:
                 if self.running_time >= 40:
                     self.running_time = 0
-                    # If there's a process in the ready_queue after the running process's quantum expires,
+                    # If there's a process in the ready_RR_queue after the running process's quantum expires,
                     # then context switch
                     if self.ready_RR_queue:
                         self.ready_RR_queue.append(self.running)
@@ -195,13 +202,13 @@ class Kernel:
     # Priority Scheduler
     def _pop_highest_priority(self) -> PCB:
         best_index = 0
-        for i in range(1, len(self.ready_queue)):
-            if self.ready_queue[i].priority > self.ready_queue[best_index].priority:
+        for i in range(1, len(self.ready_Priority_queue)):
+            if self.ready_Priority_queue[i].priority > self.ready_Priority_queue[best_index].priority:
                 best_index = i
-            elif self.ready_queue[i].priority == self.ready_queue[best_index].priority:
-                if self.ready_queue[i].pid < self.ready_queue[best_index].pid:
+            elif self.ready_Priority_queue[i].priority == self.ready_Priority_queue[best_index].priority:
+                if self.ready_Priority_queue[i].pid < self.ready_Priority_queue[best_index].pid:
                     best_index = i
 
-        best = self.ready_queue[best_index]
-        del self.ready_queue[best_index]
+        best = self.ready_Priority_queue[best_index]
+        del self.ready_Priority_queue[best_index]
         return best
