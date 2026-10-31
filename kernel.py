@@ -16,6 +16,7 @@ class PCB:
     def __init__(self, pid: PID, priority: int):
         self.pid = pid
         self.priority = priority
+        self.quantum_used = 0
 
 
 # This class represents the Kernel of the simulation.
@@ -127,7 +128,7 @@ class Kernel:
                 # Choosing new process from a non-empty queue of current level
                 if self.foreground_mode and self.ready_RR_queue:
                     self.running = self.ready_RR_queue.popleft()
-                    self.running_time = 0
+                    self.running_time = self.running.quantum_used
                 elif not self.foreground_mode and self.ready_FCFS_queue:
                     self.running = self.ready_FCFS_queue.popleft()
                     self.running_time = 0
@@ -173,7 +174,12 @@ class Kernel:
                 self.level_time = 0
                 if self.foreground_mode and self.ready_FCFS_queue:
                     if self.running is not self.idle_pcb:
-                        self.ready_RR_queue.append(self.running)
+                        if self.running_time >= 40:
+                            self.running.quantum_used = 0
+                            self.ready_RR_queue.append(self.running)
+                        else:
+                            self.running.quantum_used = self.running_time
+                            self.ready_RR_queue.appendleft(self.running)
                     self.foreground_mode = False
                     self.running = self.idle_pcb
                     self.running_time = 0
@@ -188,12 +194,14 @@ class Kernel:
             # RR quantum to foreground processes
             if self.foreground_mode and self.running is not self.idle_pcb:
                 if self.running_time >= 40:
+                    self.running.quantum_used = 0
                     self.running_time = 0
                     # If there's a process in the ready_RR_queue after the running process's quantum expires,
                     # then context switch
                     if self.ready_RR_queue:
                         self.ready_RR_queue.append(self.running)
                         self.running = self.ready_RR_queue.popleft()
+                        self.running_time = self.running.quantum_used
         return self.running.pid
 
     # HELPER FUNCTIONS
